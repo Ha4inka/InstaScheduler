@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 15%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 15%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 204 89% 38%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 336 82% 49%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 270 60% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 204 89% 38%;
+  --radius: 0.5rem;
+
+  --chart-1: 204 89% 38%;
+  --chart-2: 336 82% 49%;
+  --chart-3: 270 60% 45%;
+  --chart-4: 37 100% 50%;
+  --chart-5: 162 73% 46%;
+
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 15%;
+  --sidebar-primary: 204 89% 38%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 95%;
+  --sidebar-accent-foreground: 0 0% 15%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-ring: 204 89% 38%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 204 89% 38%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 336 82% 49%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 270 60% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+.calendar-day {
+  min-height: 100px;
+  transition: all 0.2s;
+}
+.calendar-day:hover {
+  @apply bg-gray-50;
+}
+.post-preview {
+  transition: all 0.2s;
+}
+.post-preview:hover {
+  transform: translateY(-2px);
+  @apply shadow-md;
+}
+
+.gradient-logo {
+  @apply bg-gradient-to-r from-primary to-secondary;
+}
