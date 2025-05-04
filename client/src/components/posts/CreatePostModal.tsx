@@ -9,7 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { InstagramAccount, ContentType, CreatePostFormData } from "@/lib/types";
 import { useDropzone } from "react-dropzone";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, throwIfResNotOk } from "@/lib/queryClient";
 import { Image, Play, Upload, Check, X, PlusCircle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -65,7 +65,12 @@ export default function CreatePostModal({ open, onOpenChange }: CreatePostModalP
 
   const createPostMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await apiRequest("POST", "/api/scheduled-content", formData);
+      // Use FormData directly for file uploads
+      const response = await fetch('/api/scheduled-content', {
+        method: 'POST',
+        body: formData,
+      });
+      await throwIfResNotOk(response);
       return response.json();
     },
     onSuccess: () => {
