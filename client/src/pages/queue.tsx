@@ -21,7 +21,13 @@ interface QueueViewProps {
   showHeading?: boolean;
 }
 
-export default function QueueView({ showHeading = true }: QueueViewProps) {
+// This is the component that will be rendered by the router
+export default function Queue() {
+  return <QueueView showHeading={true} />;
+}
+
+// This is the component that can be reused with or without a heading
+export function QueueView({ showHeading = true }: QueueViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   
   const { data: scheduledContent, isLoading } = useQuery<ScheduledContent[]>({
