@@ -38,7 +38,15 @@ export class MemStorage implements IStorage {
   // Instagram Account Operations
   async createInstagramAccount(account: InsertInstagramAccount): Promise<InstagramAccount> {
     const id = this.accountId++;
-    const newAccount: InstagramAccount = { ...account, id, createdAt: new Date() };
+    const newAccount: InstagramAccount = { 
+      ...account, 
+      id, 
+      createdAt: new Date(),
+      // Ensure null values for optional fields
+      isActive: account.isActive === undefined ? true : account.isActive,
+      profilePic: account.profilePic || null,
+      sessionData: account.sessionData || null
+    };
     this.instagramAccounts.set(id, newAccount);
     return newAccount;
   }
@@ -73,7 +81,21 @@ export class MemStorage implements IStorage {
   // Scheduled Content Operations
   async createScheduledContent(content: InsertScheduledContent): Promise<ScheduledContent> {
     const id = this.contentId++;
-    const newContent: ScheduledContent = { ...content, id, createdAt: new Date() };
+    
+    // Ensure the content has proper types and null values for optional fields
+    const newContent: ScheduledContent = { 
+      ...content, 
+      id, 
+      createdAt: new Date(),
+      // Set default status if not provided
+      status: content.status || "scheduled",
+      // Ensure null values for optional fields
+      firstComment: content.firstComment || null,
+      location: content.location || null,
+      hideLikeCount: content.hideLikeCount === undefined ? false : content.hideLikeCount,
+      taggedUsers: Array.isArray(content.taggedUsers) ? content.taggedUsers : null
+    };
+    
     this.scheduledContent.set(id, newContent);
     return newContent;
   }
@@ -90,7 +112,19 @@ export class MemStorage implements IStorage {
     const content = this.scheduledContent.get(id);
     if (!content) return undefined;
     
-    const updatedContent = { ...content, ...data };
+    // Create the updated content with proper null handling
+    const updatedContent: ScheduledContent = { 
+      ...content, 
+      ...data,
+      // Ensure null values for optional fields if they're undefined
+      firstComment: data.firstComment !== undefined ? data.firstComment : content.firstComment,
+      location: data.location !== undefined ? data.location : content.location,
+      hideLikeCount: data.hideLikeCount !== undefined ? data.hideLikeCount : content.hideLikeCount,
+      taggedUsers: data.taggedUsers !== undefined ? 
+        (Array.isArray(data.taggedUsers) ? data.taggedUsers : null) : 
+        content.taggedUsers
+    };
+    
     this.scheduledContent.set(id, updatedContent);
     return updatedContent;
   }

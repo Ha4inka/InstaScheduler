@@ -17,32 +17,121 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
+  
+  // Login route
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const data = insertInstagramAccountSchema.parse(req.body);
+      const { username, password } = req.body;
       
-      // Create instagrapi client and attempt login
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Check if account already exists
+      const existingAccount = await storage.getInstagramAccountByUsername(username);
+      
+      if (existingAccount) {
+        // For demo purposes, we're doing a simple password check
+        // In a real app, you would compare hashed passwords
+        if (existingAccount.password !== password) {
+          return res.status(401).json({ message: "Invalid password" });
+        }
+        
+        // Return the existing account
+        res.status(200).json({ 
+          success: true, 
+          account: {
+            id: existingAccount.id,
+            username: existingAccount.username,
+            isActive: existingAccount.isActive,
+            profilePic: existingAccount.profilePic
+          }
+        });
+        return;
+      }
+      
+      // Account doesn't exist, use InstagrapiClient to login
       const client = new InstagrapiClient();
-      const result = await client.login(data.username, data.password);
+      const result = await client.login(username, password);
       
       if (!result.success) {
         return res.status(401).json({ message: result.error || "Authentication failed" });
       }
       
-      // Store the account in storage
+      // Store the new account in storage
       const account = await storage.createInstagramAccount({
-        ...data,
+        username,
+        password,
         isActive: true,
         profilePic: result.profilePic,
         sessionData: result.sessionData
       });
       
-      res.status(200).json({ success: true, account });
+      res.status(200).json({ 
+        success: true, 
+        account: {
+          id: account.id,
+          username: account.username,
+          isActive: account.isActive,
+          profilePic: account.profilePic
+        }
+      });
     } catch (error) {
+      console.error("Login error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors });
       }
       res.status(500).json({ message: "Authentication failed" });
+    }
+  });
+  
+  // Register route 
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // Check if username already exists
+      const existingAccount = await storage.getInstagramAccountByUsername(username);
+      if (existingAccount) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Use InstagrapiClient to register and validate the account
+      const client = new InstagrapiClient();
+      const result = await client.login(username, password);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error || "Registration failed" });
+      }
+      
+      // Store the account in storage
+      const account = await storage.createInstagramAccount({
+        username,
+        password,
+        isActive: true,
+        profilePic: result.profilePic,
+        sessionData: result.sessionData
+      });
+      
+      res.status(201).json({ 
+        success: true, 
+        account: {
+          id: account.id,
+          username: account.username,
+          isActive: account.isActive,
+          profilePic: account.profilePic
+        }
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      res.status(500).json({ message: "Registration failed" });
     }
   });
   
