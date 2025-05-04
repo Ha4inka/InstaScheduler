@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { InstagramAccount, ContentType, CreatePostFormData } from "@/lib/types";
 import { useDropzone } from "react-dropzone";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Image, Play, Upload, Check, X } from "lucide-react";
+import { Image, Play, Upload, Check, X, PlusCircle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -262,7 +262,7 @@ export default function CreatePostModal({ open, onOpenChange }: CreatePostModalP
                       className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md aspect-square flex items-center justify-center cursor-pointer hover:border-primary dark:hover:border-primary"
                     >
                       <input {...getInputProps()} />
-                      <Plus className="h-6 w-6 text-gray-400" />
+                      <PlusCircle className="h-6 w-6 text-gray-400" />
                     </div>
                   )}
                 </div>

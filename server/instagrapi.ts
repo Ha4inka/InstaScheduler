@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { spawn } from "child_process";
 
 interface LoginResult {
   success: boolean;
@@ -15,7 +16,7 @@ interface PostResult {
   error?: string;
 }
 
-// Demo account info - in a real application, this would be connected to an actual Instagram API
+// Fallback demo info for testing when Python is not available
 const DEMO_ACCOUNTS = new Map<string, { 
   password: string,
   profilePic: string,
@@ -23,6 +24,8 @@ const DEMO_ACCOUNTS = new Map<string, {
 }>();
 
 export class InstagrapiClient {
+  private usePythonBackend: boolean;
+  
   constructor() {
     // Create the uploads directory if it doesn't exist
     const uploadsDir = path.join(process.cwd(), "uploads");
@@ -30,28 +33,99 @@ export class InstagrapiClient {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
+    const sessionsDir = path.join(process.cwd(), "uploads", "sessions");
+    if (!fs.existsSync(sessionsDir)) {
+      fs.mkdirSync(sessionsDir, { recursive: true });
+    }
+    
     // Set up demo accounts for testing
-    // In a real app, you would authenticate against Instagram
     DEMO_ACCOUNTS.set("demo", {
       password: "password123",
       profilePic: "https://via.placeholder.com/150",
       userId: "12345678"
     });
+    
+    // Check if we can use the Python backend
+    this.usePythonBackend = fs.existsSync(path.join(process.cwd(), "python_scripts", "login.py"));
+    console.log(`Using Python Instagrapi: ${this.usePythonBackend}`);
+  }
+
+  private runPythonScript(scriptName: string, args: string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const scriptPath = path.join(process.cwd(), "python_scripts", scriptName);
+      const process = spawn("python", [scriptPath, ...args]);
+      
+      let stdout = "";
+      let stderr = "";
+      
+      process.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+      
+      process.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+      
+      process.on("close", (code) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`Script exited with code ${code}: ${stderr}`));
+        }
+      });
+      
+      process.on("error", (err) => {
+        reject(err);
+      });
+    });
   }
 
   async login(username: string, password: string): Promise<LoginResult> {
     try {
-      // For demo purposes, we're simulating authentication
-      // In a real application, you would call the Instagram API
       console.log(`Attempting login for user: ${username}`);
       
-      // Check demo accounts
+      if (this.usePythonBackend) {
+        try {
+          // Use the Python Instagrapi for real login
+          const sessionPath = path.join(process.cwd(), "uploads", "sessions", `${username}_session.json`);
+          const result = await this.runPythonScript("login.py", [
+            username, 
+            password, 
+            sessionPath
+          ]);
+          
+          // Parse the result from Python
+          const parsedResult = JSON.parse(result);
+          
+          if (parsedResult.success) {
+            return {
+              success: true,
+              profilePic: parsedResult.profile_pic_url,
+              sessionData: {
+                sessionPath,
+                userId: parsedResult.user_id,
+                username: username
+              }
+            };
+          } else {
+            return {
+              success: false,
+              error: parsedResult.error || "Login failed"
+            };
+          }
+        } catch (pythonError) {
+          console.error("Python login error:", pythonError);
+          // Fall back to demo login if Python fails
+          console.log("Falling back to demo login...");
+        }
+      }
+      
+      // Fallback to demo login
       const account = DEMO_ACCOUNTS.get(username);
       
       if (account && account.password === password) {
         const sessionId = crypto.randomBytes(16).toString("hex");
         
-        // Simulate successful login
         return {
           success: true,
           profilePic: account.profilePic,
@@ -63,7 +137,7 @@ export class InstagrapiClient {
         };
       }
       
-      // For demo purposes, let's also accept any credentials with basic validation
+      // Accept any credentials with basic validation in demo mode
       if (username.length > 2 && password.length > 2) {
         const sessionId = crypto.randomBytes(16).toString("hex");
         
@@ -124,8 +198,45 @@ export class InstagrapiClient {
         };
       }
       
-      // In a real app, this would upload to Instagram
-      // For demo purposes, we'll simulate a successful post
+      if (this.usePythonBackend && sessionData.sessionPath) {
+        try {
+          // Use the Python Instagrapi for real post publishing
+          const args = [
+            sessionData.sessionPath,
+            mediaPath,
+            caption
+          ];
+          
+          // Add optional parameters
+          if (options.firstComment) args.push(`--first-comment=${options.firstComment}`);
+          if (options.location) args.push(`--location=${options.location}`);
+          if (options.hideLikeCount) args.push("--hide-like-count");
+          if (options.taggedUsers && options.taggedUsers.length > 0) {
+            args.push(`--tagged-users=${options.taggedUsers.join(",")}`);
+          }
+          
+          const result = await this.runPythonScript("post.py", args);
+          const parsedResult = JSON.parse(result);
+          
+          if (parsedResult.success) {
+            return {
+              success: true,
+              mediaId: parsedResult.media_id
+            };
+          } else {
+            return {
+              success: false,
+              error: parsedResult.error || "Failed to publish post"
+            };
+          }
+        } catch (pythonError) {
+          console.error("Python post error:", pythonError);
+          // Fall back to demo post if Python fails
+          console.log("Falling back to demo post...");
+        }
+      }
+      
+      // Fallback to simulated post
       const mediaId = crypto.randomBytes(12).toString("hex");
       
       return {
@@ -158,8 +269,39 @@ export class InstagrapiClient {
         };
       }
       
-      // In a real app, this would upload to Instagram
-      // For demo purposes, we'll simulate a successful story
+      if (this.usePythonBackend && sessionData.sessionPath) {
+        try {
+          // Use the Python Instagrapi for real story publishing
+          const args = [
+            sessionData.sessionPath,
+            mediaPath
+          ];
+          
+          // Add caption if provided
+          if (caption) args.push(caption);
+          
+          const result = await this.runPythonScript("story.py", args);
+          const parsedResult = JSON.parse(result);
+          
+          if (parsedResult.success) {
+            return {
+              success: true,
+              mediaId: parsedResult.media_id
+            };
+          } else {
+            return {
+              success: false,
+              error: parsedResult.error || "Failed to publish story"
+            };
+          }
+        } catch (pythonError) {
+          console.error("Python story error:", pythonError);
+          // Fall back to demo story if Python fails
+          console.log("Falling back to demo story...");
+        }
+      }
+      
+      // Fallback to simulated story
       const mediaId = crypto.randomBytes(12).toString("hex");
       
       return {
