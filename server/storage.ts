@@ -1,9 +1,17 @@
-import { 
-  InsertInstagramAccount, 
-  InstagramAccount, 
-  ScheduledContent, 
-  InsertScheduledContent 
+import {
+  InstagramAccount,
+  InsertInstagramAccount,
+  ScheduledContent,
+  InsertScheduledContent,
+  instagramAccounts,
+  scheduledContent
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import pg from "pg";
+const { Pool } = pg;
 
 export interface IStorage {
   // Instagram Account Operations
@@ -20,51 +28,196 @@ export interface IStorage {
   getAllScheduledContent(): Promise<ScheduledContent[]>;
   updateScheduledContent(id: number, data: Partial<InsertScheduledContent>): Promise<ScheduledContent | undefined>;
   deleteScheduledContent(id: number): Promise<boolean>;
+  
+  // Session support
+  sessionStore: session.Store;
 }
 
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    const PostgresStore = connectPg(session);
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true,
+    });
+  }
+  
+  // Instagram Account Operations
+  async createInstagramAccount(account: InsertInstagramAccount): Promise<InstagramAccount> {
+    const [newAccount] = await db
+      .insert(instagramAccounts)
+      .values(account)
+      .returning();
+    
+    return newAccount;
+  }
+  
+  async getInstagramAccount(id: number): Promise<InstagramAccount | undefined> {
+    const [account] = await db
+      .select()
+      .from(instagramAccounts)
+      .where(eq(instagramAccounts.id, id));
+    
+    return account;
+  }
+  
+  async getInstagramAccountByUsername(username: string): Promise<InstagramAccount | undefined> {
+    const [account] = await db
+      .select()
+      .from(instagramAccounts)
+      .where(eq(instagramAccounts.username, username));
+    
+    return account;
+  }
+  
+  async getAllInstagramAccounts(): Promise<InstagramAccount[]> {
+    return await db
+      .select()
+      .from(instagramAccounts);
+  }
+  
+  async updateInstagramAccount(id: number, data: Partial<InsertInstagramAccount>): Promise<InstagramAccount | undefined> {
+    const [updatedAccount] = await db
+      .update(instagramAccounts)
+      .set(data)
+      .where(eq(instagramAccounts.id, id))
+      .returning();
+    
+    return updatedAccount;
+  }
+  
+  async deleteInstagramAccount(id: number): Promise<boolean> {
+    const result = await db
+      .delete(instagramAccounts)
+      .where(eq(instagramAccounts.id, id));
+    
+    return true; // PostgreSQL doesn't return boolean for delete operations
+  }
+  
+  // Scheduled Content Operations
+  async createScheduledContent(content: InsertScheduledContent): Promise<ScheduledContent> {
+    // Insert with null handling built into Drizzle
+    const [newContent] = await db
+      .insert(scheduledContent)
+      .values({
+        ...content,
+        // Default values already set in schema definition
+      })
+      .returning();
+    
+    return newContent;
+  }
+  
+  async getScheduledContent(id: number): Promise<ScheduledContent | undefined> {
+    const [content] = await db
+      .select()
+      .from(scheduledContent)
+      .where(eq(scheduledContent.id, id));
+    
+    return content;
+  }
+  
+  async getAllScheduledContent(): Promise<ScheduledContent[]> {
+    return await db
+      .select()
+      .from(scheduledContent);
+  }
+  
+  async updateScheduledContent(id: number, data: Partial<InsertScheduledContent>): Promise<ScheduledContent | undefined> {
+    // Get the existing content first to ensure we handle nulls properly
+    const [existingContent] = await db
+      .select()
+      .from(scheduledContent)
+      .where(eq(scheduledContent.id, id));
+    
+    if (!existingContent) {
+      return undefined;
+    }
+    
+    // Prepare data with proper null handling
+    const updatedData = {
+      ...data,
+      firstComment: data.firstComment !== undefined ? data.firstComment : existingContent.firstComment,
+      location: data.location !== undefined ? data.location : existingContent.location,
+      hideLikeCount: data.hideLikeCount !== undefined ? data.hideLikeCount : existingContent.hideLikeCount,
+      taggedUsers: data.taggedUsers !== undefined ? 
+        (Array.isArray(data.taggedUsers) ? data.taggedUsers : null) : 
+        existingContent.taggedUsers
+    };
+    
+    const [updatedContent] = await db
+      .update(scheduledContent)
+      .set(updatedData)
+      .where(eq(scheduledContent.id, id))
+      .returning();
+    
+    return updatedContent;
+  }
+  
+  async deleteScheduledContent(id: number): Promise<boolean> {
+    await db
+      .delete(scheduledContent)
+      .where(eq(scheduledContent.id, id));
+    
+    return true;
+  }
+}
+
+// Memory storage implementation for fallback
 export class MemStorage implements IStorage {
   private instagramAccounts: Map<number, InstagramAccount>;
   private scheduledContent: Map<number, ScheduledContent>;
   private accountId: number;
   private contentId: number;
-
+  sessionStore: session.Store;
+  
   constructor() {
     this.instagramAccounts = new Map();
     this.scheduledContent = new Map();
     this.accountId = 1;
     this.contentId = 1;
+    
+    const MemoryStore = require('memorystore')(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
   }
-
+  
   // Instagram Account Operations
   async createInstagramAccount(account: InsertInstagramAccount): Promise<InstagramAccount> {
     const id = this.accountId++;
+    
     const newAccount: InstagramAccount = { 
       ...account, 
       id, 
-      createdAt: new Date(),
-      // Ensure null values for optional fields
-      isActive: account.isActive === undefined ? true : account.isActive,
-      profilePic: account.profilePic || null,
-      sessionData: account.sessionData || null
+      createdAt: new Date() 
     };
+    
     this.instagramAccounts.set(id, newAccount);
     return newAccount;
   }
-
+  
   async getInstagramAccount(id: number): Promise<InstagramAccount | undefined> {
     return this.instagramAccounts.get(id);
   }
-
+  
   async getInstagramAccountByUsername(username: string): Promise<InstagramAccount | undefined> {
-    return Array.from(this.instagramAccounts.values()).find(
-      (account) => account.username === username
-    );
+    for (const account of this.instagramAccounts.values()) {
+      if (account.username === username) {
+        return account;
+      }
+    }
+    return undefined;
   }
-
+  
   async getAllInstagramAccounts(): Promise<InstagramAccount[]> {
     return Array.from(this.instagramAccounts.values());
   }
-
+  
   async updateInstagramAccount(id: number, data: Partial<InsertInstagramAccount>): Promise<InstagramAccount | undefined> {
     const account = this.instagramAccounts.get(id);
     if (!account) return undefined;
@@ -73,11 +226,11 @@ export class MemStorage implements IStorage {
     this.instagramAccounts.set(id, updatedAccount);
     return updatedAccount;
   }
-
+  
   async deleteInstagramAccount(id: number): Promise<boolean> {
     return this.instagramAccounts.delete(id);
   }
-
+  
   // Scheduled Content Operations
   async createScheduledContent(content: InsertScheduledContent): Promise<ScheduledContent> {
     const id = this.contentId++;
@@ -99,15 +252,15 @@ export class MemStorage implements IStorage {
     this.scheduledContent.set(id, newContent);
     return newContent;
   }
-
+  
   async getScheduledContent(id: number): Promise<ScheduledContent | undefined> {
     return this.scheduledContent.get(id);
   }
-
+  
   async getAllScheduledContent(): Promise<ScheduledContent[]> {
     return Array.from(this.scheduledContent.values());
   }
-
+  
   async updateScheduledContent(id: number, data: Partial<InsertScheduledContent>): Promise<ScheduledContent | undefined> {
     const content = this.scheduledContent.get(id);
     if (!content) return undefined;
@@ -128,10 +281,11 @@ export class MemStorage implements IStorage {
     this.scheduledContent.set(id, updatedContent);
     return updatedContent;
   }
-
+  
   async deleteScheduledContent(id: number): Promise<boolean> {
     return this.scheduledContent.delete(id);
   }
 }
 
-export const storage = new MemStorage();
+// Export the appropriate storage implementation
+export const storage = new DatabaseStorage();
