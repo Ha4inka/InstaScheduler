@@ -150,6 +150,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Create Instagram account (for testing purposes)
+  app.post("/api/accounts", async (req, res) => {
+    try {
+      const accountData = insertInstagramAccountSchema.parse(req.body);
+      
+      // Check if username already exists
+      const existingAccount = await storage.getInstagramAccountByUsername(accountData.username);
+      if (existingAccount) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Create the account
+      const account = await storage.createInstagramAccount(accountData);
+      
+      res.status(201).json({
+        id: account.id,
+        username: account.username,
+        isActive: account.isActive,
+        profilePic: account.profilePic
+      });
+    } catch (error) {
+      console.error("Error creating account:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+  
   // Scheduled content routes
   app.get("/api/scheduled-content", async (req, res) => {
     try {
