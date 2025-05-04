@@ -134,8 +134,8 @@ export default function CreatePostModal({ open, onOpenChange }: CreatePostModalP
     try {
       // Create FormData for file uploads
       const formData = new FormData();
-      files.forEach((file, index) => {
-        formData.append(`media${index}`, file);
+      files.forEach((file) => {
+        formData.append("media", file);
       });
 
       // Add other form data

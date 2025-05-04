@@ -53,20 +53,20 @@ export class InstagrapiClient {
   private runPythonScript(scriptName: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
       const scriptPath = path.join(process.cwd(), "python_scripts", scriptName);
-      const process = spawn("python", [scriptPath, ...args]);
+      const pythonProcess = spawn("python", [scriptPath, ...args]);
       
       let stdout = "";
       let stderr = "";
       
-      process.stdout.on("data", (data) => {
+      pythonProcess.stdout.on("data", (data) => {
         stdout += data.toString();
       });
       
-      process.stderr.on("data", (data) => {
+      pythonProcess.stderr.on("data", (data) => {
         stderr += data.toString();
       });
       
-      process.on("close", (code) => {
+      pythonProcess.on("close", (code) => {
         if (code === 0) {
           resolve(stdout);
         } else {
@@ -74,7 +74,7 @@ export class InstagrapiClient {
         }
       });
       
-      process.on("error", (err) => {
+      pythonProcess.on("error", (err) => {
         reject(err);
       });
     });

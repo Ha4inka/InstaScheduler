@@ -164,6 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scheduled-content", upload.array("media", 10), async (req, res) => {
     try {
       const files = req.files as Express.Multer.File[];
+      console.log("Uploaded files:", files);
+      console.log("Request body:", req.body);
       
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "No media files uploaded" });
@@ -208,6 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(content);
     } catch (error) {
+      console.error("Error creating scheduled content:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors });
       }
