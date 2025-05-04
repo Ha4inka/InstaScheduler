@@ -103,10 +103,7 @@ export class DatabaseStorage implements IStorage {
     // Insert with null handling built into Drizzle
     const [newContent] = await db
       .insert(scheduledContent)
-      .values({
-        ...content,
-        // Default values already set in schema definition
-      })
+      .values(content)
       .returning();
     
     return newContent;
@@ -128,30 +125,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateScheduledContent(id: number, data: Partial<InsertScheduledContent>): Promise<ScheduledContent | undefined> {
-    // Get the existing content first to ensure we handle nulls properly
-    const [existingContent] = await db
-      .select()
-      .from(scheduledContent)
-      .where(eq(scheduledContent.id, id));
-    
-    if (!existingContent) {
-      return undefined;
-    }
-    
-    // Prepare data with proper null handling
-    const updatedData = {
-      ...data,
-      firstComment: data.firstComment !== undefined ? data.firstComment : existingContent.firstComment,
-      location: data.location !== undefined ? data.location : existingContent.location,
-      hideLikeCount: data.hideLikeCount !== undefined ? data.hideLikeCount : existingContent.hideLikeCount,
-      taggedUsers: data.taggedUsers !== undefined ? 
-        (Array.isArray(data.taggedUsers) ? data.taggedUsers : null) : 
-        existingContent.taggedUsers
-    };
-    
+    // Update directly without additional processing
+    // Drizzle ORM handles the null values correctly
     const [updatedContent] = await db
       .update(scheduledContent)
-      .set(updatedData)
+      .set(data)
       .where(eq(scheduledContent.id, id))
       .returning();
     
@@ -191,10 +169,14 @@ export class MemStorage implements IStorage {
   async createInstagramAccount(account: InsertInstagramAccount): Promise<InstagramAccount> {
     const id = this.accountId++;
     
+    // Create a proper InstagramAccount object with all required fields
     const newAccount: InstagramAccount = { 
       ...account, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      isActive: account.isActive ?? true,
+      profilePic: account.profilePic ?? null,
+      sessionData: account.sessionData ?? null
     };
     
     this.instagramAccounts.set(id, newAccount);
@@ -206,12 +188,9 @@ export class MemStorage implements IStorage {
   }
   
   async getInstagramAccountByUsername(username: string): Promise<InstagramAccount | undefined> {
-    for (const account of this.instagramAccounts.values()) {
-      if (account.username === username) {
-        return account;
-      }
-    }
-    return undefined;
+    // Use Array.from to avoid downlevelIteration errors
+    const accounts = Array.from(this.instagramAccounts.values());
+    return accounts.find(account => account.username === username);
   }
   
   async getAllInstagramAccounts(): Promise<InstagramAccount[]> {
@@ -235,18 +214,23 @@ export class MemStorage implements IStorage {
   async createScheduledContent(content: InsertScheduledContent): Promise<ScheduledContent> {
     const id = this.contentId++;
     
-    // Ensure the content has proper types and null values for optional fields
+    // Create a proper ScheduledContent object with all required fields
     const newContent: ScheduledContent = { 
-      ...content, 
+      // Required fields
       id, 
       createdAt: new Date(),
-      // Set default status if not provided
+      accountId: content.accountId,
+      type: content.type,
+      caption: content.caption,
+      mediaUrl: content.mediaUrl,
+      scheduledDate: content.scheduledDate,
       status: content.status || "scheduled",
-      // Ensure null values for optional fields
-      firstComment: content.firstComment || null,
-      location: content.location || null,
-      hideLikeCount: content.hideLikeCount === undefined ? false : content.hideLikeCount,
-      taggedUsers: Array.isArray(content.taggedUsers) ? content.taggedUsers : null
+      
+      // Optional fields with proper null handling
+      firstComment: content.firstComment ?? null,
+      location: content.location ?? null,
+      hideLikeCount: content.hideLikeCount ?? false,
+      taggedUsers: content.taggedUsers ?? null
     };
     
     this.scheduledContent.set(id, newContent);
@@ -267,15 +251,18 @@ export class MemStorage implements IStorage {
     
     // Create the updated content with proper null handling
     const updatedContent: ScheduledContent = { 
-      ...content, 
-      ...data,
-      // Ensure null values for optional fields if they're undefined
-      firstComment: data.firstComment !== undefined ? data.firstComment : content.firstComment,
-      location: data.location !== undefined ? data.location : content.location,
-      hideLikeCount: data.hideLikeCount !== undefined ? data.hideLikeCount : content.hideLikeCount,
-      taggedUsers: data.taggedUsers !== undefined ? 
-        (Array.isArray(data.taggedUsers) ? data.taggedUsers : null) : 
-        content.taggedUsers
+      ...content,
+      // Update specific fields with proper type handling
+      ...(data.accountId !== undefined && { accountId: data.accountId }),
+      ...(data.type !== undefined && { type: data.type }),
+      ...(data.caption !== undefined && { caption: data.caption }),
+      ...(data.mediaUrl !== undefined && { mediaUrl: data.mediaUrl }),
+      ...(data.scheduledDate !== undefined && { scheduledDate: data.scheduledDate }),
+      ...(data.status !== undefined && { status: data.status }),
+      ...(data.firstComment !== undefined && { firstComment: data.firstComment }),
+      ...(data.location !== undefined && { location: data.location }),
+      ...(data.hideLikeCount !== undefined && { hideLikeCount: data.hideLikeCount }),
+      ...(data.taggedUsers !== undefined && { taggedUsers: data.taggedUsers })
     };
     
     this.scheduledContent.set(id, updatedContent);
