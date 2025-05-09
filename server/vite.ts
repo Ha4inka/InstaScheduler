@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
+import viteConfig from "../vite.config.js";
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
@@ -20,11 +20,11 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true,
-  };
+    const serverOptions = {
+        middlewareMode: true,
+        hmr: { server },
+        allowedHosts: undefined,
+    };
 
   const vite = await createViteServer({
     ...viteConfig,
@@ -45,12 +45,11 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+      const isProd = process.env.NODE_ENV === "production";
+      const clientTemplate = isProd
+          ? path.resolve(import.meta.dirname, "public", "index.html")
+          : path.resolve(import.meta.dirname, "..", "client", "index.html");
+
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
@@ -68,7 +67,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const distPath = path.resolve(import.meta.dirname, "..", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

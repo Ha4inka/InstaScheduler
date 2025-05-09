@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface QueueViewProps {
-  showHeading?: boolean;
+  showHeading: boolean;
 }
 
 // This is the component that will be rendered by the router

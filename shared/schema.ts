@@ -45,3 +45,9 @@ export type InsertInstagramAccount = z.infer<typeof insertInstagramAccountSchema
 
 export type ScheduledContent = typeof scheduledContent.$inferSelect;
 export type InsertScheduledContent = z.infer<typeof insertScheduledContentSchema>;
+export const schema = {
+  instagramAccounts,
+  scheduledContent,
+  insertInstagramAccountSchema,
+  insertScheduledContentSchema,
+};

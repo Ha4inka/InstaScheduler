@@ -1,7 +1,15 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import MainContent from "@/components/layout/MainContent";
 import CalendarView from "@/components/calendar/CalendarView";
-import QueueView from "@/pages/queue";
+import { QueueView } from "@/pages/queue";
+
+// Add this inside the file where QueueView is defined:
+// export interface QueueViewProps {
+//   showHeading: boolean;
+// }
+
+// Then ensure QueueView is typed correctly with:
+// const QueueView: React.FC<QueueViewProps> = ({ showHeading }) => { ... }
 
 export default function Calendar() {
   const [currentView, setCurrentView] = useState<'calendar' | 'list'>('calendar');

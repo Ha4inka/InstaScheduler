@@ -1,13 +1,13 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.js";
 import { z } from "zod";
-import { insertInstagramAccountSchema, insertScheduledContentSchema } from "@shared/schema";
-import { InstagrapiClient } from "./instagrapi";
+import { insertInstagramAccountSchema, insertScheduledContentSchema } from "../shared/schema.js";
+import { InstagrapiClient } from "./instagrapi.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { scheduler } from "./scheduler";
+import { scheduler } from "./scheduler.js";
 
 // Configure multer for media uploads
 const upload = multer({ 

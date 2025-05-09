@@ -1,7 +1,7 @@
 import nodeSchedule, { Job as ScheduledTask } from "node-schedule";
-import { storage } from "./storage";
-import { ScheduledContent } from "@shared/schema";
-import { InstagrapiClient } from "./instagrapi";
+import { storage } from "./storage.js";
+import { ScheduledContent } from "../shared/schema.js";
+import { InstagrapiClient } from "./instagrapi.js";
 import path from "path";
 import fs from "fs";
 

@@ -5,8 +5,8 @@ import {
   InsertScheduledContent,
   instagramAccounts,
   scheduledContent
-} from "@shared/schema";
-import { db } from "./db";
+} from "../shared/schema.js";
+import { db } from "./db.js";
 import { eq, and } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -103,7 +103,7 @@ export class DatabaseStorage implements IStorage {
     // Insert with null handling built into Drizzle
     const [newContent] = await db
       .insert(scheduledContent)
-      .values(content)
+      .values({ ...content, taggedUsers: content.taggedUsers ? [...content.taggedUsers] : null })
       .returning();
     
     return newContent;
@@ -129,7 +129,7 @@ export class DatabaseStorage implements IStorage {
     // Drizzle ORM handles the null values correctly
     const [updatedContent] = await db
       .update(scheduledContent)
-      .set(data)
+      .set({ ...data, taggedUsers: data.taggedUsers ? [...data.taggedUsers] : null })
       .where(eq(scheduledContent.id, id))
       .returning();
     
@@ -230,7 +230,7 @@ export class MemStorage implements IStorage {
       firstComment: content.firstComment ?? null,
       location: content.location ?? null,
       hideLikeCount: content.hideLikeCount ?? false,
-      taggedUsers: content.taggedUsers ?? null
+      taggedUsers: content.taggedUsers ? [...content.taggedUsers] : null
     };
     
     this.scheduledContent.set(id, newContent);
@@ -262,7 +262,7 @@ export class MemStorage implements IStorage {
       ...(data.firstComment !== undefined && { firstComment: data.firstComment }),
       ...(data.location !== undefined && { location: data.location }),
       ...(data.hideLikeCount !== undefined && { hideLikeCount: data.hideLikeCount }),
-      ...(data.taggedUsers !== undefined && { taggedUsers: data.taggedUsers })
+                ...(data.taggedUsers !== undefined && { taggedUsers: data.taggedUsers ? [...data.taggedUsers] : null })
     };
     
     this.scheduledContent.set(id, updatedContent);
